@@ -119,13 +119,21 @@ def get_verification_data(document_id):
         )
         keypresses = cur.fetchall()
 
+        # Calculate time taken if there are keypresses
+        time_taken = 0
+        if keypresses:
+            first_press = keypresses[0]['created_at']
+            last_press = keypresses[-1]['created_at']
+            time_taken = round((last_press - first_press).total_seconds())
+
         return jsonify({
             'document': {
                 'id': document['id'],
                 'content': document['content'],
                 'title': document['title'],
                 'created_at': document['created_at'].isoformat(),
-                'total_characters': document['total_characters']
+                'total_characters': document['total_characters'],
+                'time_taken': time_taken
             },
             'keypresses': [{
                 'timestamp': kp['created_at'].isoformat(),
