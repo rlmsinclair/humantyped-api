@@ -104,27 +104,27 @@ def get_verification_data(document_id):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        cur.execute(
-            "SELECT * FROM documents WHERE id = %s",
-            (document_id,)
-        )
+        # Get document data
+        cur.execute("SELECT * FROM documents WHERE id = %s", (document_id,))
         document = cur.fetchone()
-
         if not document:
             return jsonify({'error': 'Document not found'}), 404
 
+        # Get keypress data
         cur.execute(
-            "SELECT * FROM get_verification_data(%s)",
+            "SELECT created_at, key_char, typing_speed::integer as typing_speed, total_characters FROM get_verification_data(%s)",
             (document_id,)
         )
         keypresses = cur.fetchall()
 
-        # Calculate time taken if there are keypresses
+        # Calculate time taken in seconds
         time_taken = 0
         if keypresses:
-            first_press = keypresses[0]['created_at']
-            last_press = keypresses[-1]['created_at']
-            time_taken = round((last_press - first_press).total_seconds())
+            time_delta = keypresses[-1]['created_at'] - keypresses[0]['created_at']
+            time_taken = round(time_delta.total_seconds())
+
+        # Get the last keypress for final typing speed
+        final_typing_speed = keypresses[-1]['typing_speed'] if keypresses else 0
 
         return jsonify({
             'document': {
@@ -133,7 +133,8 @@ def get_verification_data(document_id):
                 'title': document['title'],
                 'created_at': document['created_at'].isoformat(),
                 'total_characters': document['total_characters'],
-                'time_taken': time_taken
+                'time_taken_seconds': time_taken,
+                'final_typing_speed': final_typing_speed
             },
             'keypresses': [{
                 'timestamp': kp['created_at'].isoformat(),
